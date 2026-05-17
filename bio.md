@@ -16,8 +16,7 @@
 - 🔹 Basic Web Applications
 
 ## 📊 GitHub Stats
-(https://github-readme-stats.vercel.app/api?username=jhasatyam9537&show_icons=true)
-
+(https://github-readme-stats.vercel.app/api?username=jhasatyam9537&show_icons=true&theme=dark&hide_border=true&count_private=true)
 ## 📫 Contact Me
 - 📧 Email: jhasatyam9537@gmail.com
 - 🌐 GitHub: https://github.com/jhasatyam9537
