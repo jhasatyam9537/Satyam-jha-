@@ -14,9 +14,6 @@
 - 🔹 Student Management System
 - 🔹 Portfolio Website
 - 🔹 Basic Web Applications
-
-## 📊 GitHub Stats
-![GitHub Stats](https://github-readme-stats.vercel.app/api?username=jhasatyam9537&show_icons=true)
 ## 📫 Contact Me
 - 📧 Email: jhasatyam9537@gmail.com
 - 🌐 GitHub: https://github.com/jhasatyam9537
