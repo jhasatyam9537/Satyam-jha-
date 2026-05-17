@@ -21,4 +21,4 @@
 - 📧 Email: jhasatyam9537@gmail.com
 - 🌐 GitHub: https://github.com/jhasatyam9537
 
-✨ *Thank you for visiting my profile!*
+ *Thank you for visiting my profile!*
