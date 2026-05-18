@@ -1,0 +1,380 @@
+
+<h2 class="sr-only">Interactive vulnerability scanner with port scan, header check, TLS, software fingerprinting, path discovery and JSON export.</h2>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.terminal{background:#0f0f0d;border-radius:var(--border-radius-lg);padding:1rem 1.1rem;font-family:var(--font-mono);font-size:12.5px;line-height:1.75;max-height:240px;overflow-y:auto;border:0.5px solid #252520}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em}
+.bc{background:#FCEBEB;color:#A32D2D}.bh{background:#FAEEDA;color:#854F0B}.bm{background:#E6F1FB;color:#185FA5}.bl{background:#EAF3DE;color:#3B6D11}
+.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;padding:7px 13px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);font-family:var(--font-sans)}
+.tab-btn.on{border-bottom-color:#EF9F27;color:var(--color-text-primary);font-weight:500}
+.row{display:flex;align-items:flex-start;gap:10px;padding:.6rem 1rem;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);margin-bottom:6px}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.7rem 1rem}
+.ml{font-size:12px;color:var(--color-text-secondary);margin-bottom:3px}
+.mv{font-size:21px;font-weight:500}
+.pbar-bg{background:var(--color-border-tertiary);border-radius:4px;height:5px;overflow:hidden;margin-top:4px}
+.pbar{height:100%;background:#EF9F27;border-radius:4px;transition:width .15s}
+.chip{font-size:11px;padding:2px 8px;border-radius:12px;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px}
+.chip.on{background:var(--color-background-secondary);border-color:var(--color-border-secondary);color:var(--color-text-primary)}
+</style>
+
+<div style="padding:1.25rem 0">
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem">
+  <div style="width:38px;height:38px;border-radius:9px;background:#1a1a17;display:flex;align-items:center;justify-content:center">
+    <i class="ti ti-shield-search" style="font-size:20px;color:#EF9F27" aria-hidden="true"></i>
+  </div>
+  <div>
+    <div style="font-size:16px;font-weight:500">Vulnerability Scanner</div>
+    <div style="font-size:12px;color:var(--color-text-secondary)">Port scan · Headers · TLS · Software · Path discovery</div>
+  </div>
+  <span class="badge" style="margin-left:auto;background:var(--color-background-warning);color:var(--color-text-warning);font-size:11px">Simulation</span>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:.85rem">
+  <div style="flex:1;position:relative">
+    <i class="ti ti-server" aria-hidden="true" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--color-text-tertiary)"></i>
+    <input id="tgt" value="192.168.1.1" placeholder="IP, hostname or URL" style="width:100%;padding-left:32px" />
+  </div>
+  <button id="scanBtn" onclick="startScan()" style="padding:0 18px;font-weight:500">Scan ↗</button>
+  <button onclick="resetAll()" title="Reset" style="padding:0 12px"><i class="ti ti-refresh" aria-hidden="true" style="font-size:16px"></i></button>
+</div>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">
+  <span class="chip on" data-mod="ports" onclick="toggleChip(this)"><i class="ti ti-plug" style="font-size:12px" aria-hidden="true"></i>Ports</span>
+  <span class="chip on" data-mod="headers" onclick="toggleChip(this)"><i class="ti ti-http" style="font-size:12px" aria-hidden="true"></i>Headers</span>
+  <span class="chip on" data-mod="tls" onclick="toggleChip(this)"><i class="ti ti-lock" style="font-size:12px" aria-hidden="true"></i>TLS</span>
+  <span class="chip on" data-mod="software" onclick="toggleChip(this)"><i class="ti ti-package" style="font-size:12px" aria-hidden="true"></i>Software</span>
+  <span class="chip on" data-mod="paths" onclick="toggleChip(this)"><i class="ti ti-folder-search" style="font-size:12px" aria-hidden="true"></i>Paths</span>
+</div>
+
+<div id="progWrap" style="display:none;margin-bottom:.85rem">
+  <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-secondary);margin-bottom:3px">
+    <span id="taskLbl">Scanning…</span><span id="pct">0%</span>
+  </div>
+  <div class="pbar-bg"><div class="pbar" id="pb" style="width:0%"></div></div>
+</div>
+
+<div class="terminal" id="term" style="display:none"></div>
+
+<div id="report" style="display:none;margin-top:1.25rem">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px;margin-bottom:1.1rem" id="metrics"></div>
+  <div style="display:flex;gap:0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:1rem">
+    <button class="tab-btn on" onclick="showTab('ports',this)">Ports</button>
+    <button class="tab-btn" onclick="showTab('headers',this)">Headers</button>
+    <button class="tab-btn" onclick="showTab('tls',this)">TLS</button>
+    <button class="tab-btn" onclick="showTab('software',this)">Software</button>
+    <button class="tab-btn" onclick="showTab('paths',this)">Paths</button>
+    <button class="tab-btn" onclick="showTab('fixes',this)">Fixes</button>
+  </div>
+  <div id="tabContent"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+    <button onclick="exportJSON()">Export JSON ↗</button>
+    <button onclick="sendPrompt('Explain the top vulnerabilities found and how to fix them step by step')">Explain findings ↗</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+const PORTS=[
+  [21,"FTP","critical","Plaintext file transfer — anonymous login risk"],
+  [22,"SSH","medium","Secure Shell — brute-force risk if publicly exposed"],
+  [23,"Telnet","critical","Plaintext terminal — must be disabled"],
+  [25,"SMTP","medium","Mail relay — open relay misconfiguration risk"],
+  [53,"DNS","medium","DNS — zone transfer and amplification risk"],
+  [80,"HTTP","medium","Unencrypted web — should redirect to HTTPS"],
+  [110,"POP3","high","Plaintext mail retrieval — credential exposure"],
+  [135,"MSRPC","high","Windows RPC — lateral movement vector"],
+  [139,"NetBIOS","high","Windows networking — common attack surface"],
+  [143,"IMAP","medium","Mail access — credential exposure risk"],
+  [443,"HTTPS","low","Secure web — verify TLS version and cipher suites"],
+  [445,"SMB","critical","Windows file sharing — EternalBlue / ransomware"],
+  [1433,"MSSQL","high","SQL Server — should not be internet-facing"],
+  [3306,"MySQL","high","MySQL — database exposure risk"],
+  [3389,"RDP","critical","Remote Desktop — BlueKeep / brute-force risk"],
+  [5432,"PostgreSQL","high","PostgreSQL — database exposure risk"],
+  [5900,"VNC","critical","VNC — weak auth, unencrypted sessions"],
+  [6379,"Redis","critical","Redis — unauthenticated by default"],
+  [8080,"HTTP-Alt","medium","Alt HTTP — admin panels often exposed here"],
+  [8443,"HTTPS-Alt","low","Alt HTTPS — verify certificate validity"],
+  [27017,"MongoDB","critical","MongoDB — no auth by default historically"],
+];
+const HEADERS=[
+  ["Strict-Transport-Security","critical","HSTS missing — HTTPS downgrade possible"],
+  ["Content-Security-Policy","high","CSP absent — XSS and injection risk"],
+  ["X-Frame-Options","medium","Clickjacking protection absent"],
+  ["X-Content-Type-Options","medium","MIME-sniffing attacks possible"],
+  ["Referrer-Policy","low","Referrer leakage to third parties"],
+  ["Permissions-Policy","low","Browser features not restricted"],
+  ["X-XSS-Protection","low","Legacy XSS filter header absent"],
+];
+const SOFTWARE=[
+  ["Apache HTTP Server","2.4.49","2.4.58","CVE-2021-41773","critical","Path traversal / RCE"],
+  ["nginx","1.18.0","1.25.3","CVE-2021-23017","high","Off-by-one heap write"],
+  ["OpenSSL","3.0.5","3.2.0","CVE-2022-0778","critical","Infinite loop / DoS"],
+  ["OpenSSH","8.4","9.5","CVE-2023-38408","high","Remote code execution via agent"],
+  ["PHP","8.1.10","8.3.0","CVE-2022-31625","high","RCE via mysqlnd"],
+  ["WordPress","6.2","6.4.2","CVE-2023-2745","medium","Arbitrary shortcode execution"],
+  ["MySQL","5.7.39","8.2.0","CVE-2023-21980","high","Unauthenticated RCE"],
+  ["Redis","6.2.7","7.2.3","CVE-2023-28856","medium","Auth bypass via RESET"],
+];
+const PATHS=[
+  ["/.git/HEAD","critical","Git repo exposed — source code leak"],
+  ["/.env","critical",".env file readable — credentials and API keys"],
+  ["/phpinfo.php","high","phpinfo() exposed — full server config visible"],
+  ["/admin","medium","Admin panel path accessible"],
+  ["/wp-login.php","medium","WordPress login — brute-force risk"],
+  ["/server-status","high","Apache server-status — internal IP leak"],
+  ["/actuator/health","medium","Spring Boot actuator exposed"],
+  ["/robots.txt","low","robots.txt accessible — review for sensitive paths"],
+  ["/backup.zip","high","Backup archive exposed in web root"],
+  ["/.htaccess","medium",".htaccess readable — config disclosure"],
+];
+const TLS=[
+  ["TLS 1.0 enabled","critical","Vulnerable to POODLE and BEAST attacks"],
+  ["TLS 1.1 enabled","high","Deprecated — upgrade to TLS 1.2+"],
+  ["Weak cipher suites (RC4/DES)","critical","Trivially breakable encryption"],
+  ["Certificate expiry < 30 days","high","Near-expiry certificate detected"],
+  ["Self-signed certificate","medium","No CA validation — MITM risk"],
+  ["Missing OCSP stapling","low","Slower certificate revocation checking"],
+  ["HSTS max-age too short","low","HSTS max-age below 1 year recommended"],
+];
+
+let scanData={}, running=false;
+
+function seededRnd(seed){
+  let s=seed;
+  return ()=>{s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/0xffffffff;};
+}
+
+function toggleChip(el){el.classList.toggle('on')}
+function activeMods(){return[...document.querySelectorAll('.chip.on')].map(c=>c.dataset.mod)}
+
+function logLine(cls,txt){
+  const t=document.getElementById('term');
+  const d=document.createElement('div');
+  d.style.color=cls==='crit'?'#F09595':cls==='high'?'#FAC775':cls==='med'?'#85B7EB':cls==='ok'?'#5DCAA5':'#5F5E5A';
+  d.textContent=txt; t.appendChild(d); t.scrollTop=t.scrollHeight;
+}
+function setP(pct,lbl){
+  document.getElementById('pb').style.width=Math.round(pct)+'%';
+  document.getElementById('pct').textContent=Math.round(pct)+'%';
+  document.getElementById('taskLbl').textContent=lbl;
+}
+function badgeFor(s){const m={critical:'bc',high:'bh',medium:'bm',low:'bl'};return`<span class="badge ${m[s]||'bl'}">${s}</span>`}
+function none(msg){return`<div style="color:var(--color-text-secondary);font-size:14px;padding:1rem 0">${msg}</div>`}
+
+async function startScan(){
+  if(running)return;
+  const mods=activeMods();
+  if(!mods.length)return;
+  running=true;
+  const target=document.getElementById('tgt').value.trim()||'192.168.1.1';
+  document.getElementById('scanBtn').textContent='Scanning…';
+  document.getElementById('scanBtn').disabled=true;
+  document.getElementById('report').style.display='none';
+  document.getElementById('term').innerHTML='';
+  document.getElementById('term').style.display='block';
+  document.getElementById('progWrap').style.display='block';
+
+  const seed=target.split('').reduce((a,c)=>a+c.charCodeAt(0),Date.now()%9999);
+  const rnd=seededRnd(seed);
+  const prob=r=>({critical:.42,high:.36,medium:.50,low:.65}[r]||.4);
+
+  scanData={target,ports:[],headers:[],tls:[],software:[],paths:[],summary:{critical:0,high:0,medium:0,low:0}};
+
+  logLine('info',`[INFO]   Target: ${target}`);
+  logLine('info',`[INFO]   Modules: ${mods.join(', ')}`);
+  logLine('info','[INFO]   ─────────────────────────────────────');
+  await tick();
+
+  const steps=mods.length;
+  let done=0;
+
+  if(mods.includes('ports')){
+    setP((done/steps)*100,'Port scanning…');
+    logLine('info','[INFO]   Phase 1 — Port Discovery');
+    for(const [port,svc,risk,desc] of PORTS){
+      if(rnd()<prob(risk)){
+        scanData.ports.push({port,svc,risk,desc});
+        scanData.summary[risk]=(scanData.summary[risk]||0)+1;
+        const cl=risk==='critical'?'crit':risk==='high'?'high':'med';
+        logLine(cl,`[${risk.toUpperCase().padEnd(8)}] ${String(port).padEnd(6)} ${svc.padEnd(14)} OPEN`);
+      }
+      await tick(30);
+    }
+    logLine('info',`[INFO]   ${scanData.ports.length} open port(s) found`);
+    done++; await tick(150);
+  }
+
+  if(mods.includes('headers')){
+    setP((done/steps)*100,'Checking HTTP headers…');
+    logLine('info','[INFO]   ─────────────────────────────────────');
+    logLine('info','[INFO]   Phase 2 — HTTP Security Headers');
+    for(const [h,risk,desc] of HEADERS){
+      if(rnd()<0.55){
+        scanData.headers.push({header:h,risk,desc});
+        scanData.summary[risk]=(scanData.summary[risk]||0)+1;
+        const cl=risk==='critical'?'crit':risk==='high'?'high':'med';
+        logLine(cl,`[${risk.toUpperCase().padEnd(8)}] Missing: ${h}`);
+      } else logLine('ok',`[OK]       Present: ${h}`);
+      await tick(60);
+    }
+    done++; await tick(150);
+  }
+
+  if(mods.includes('tls')){
+    setP((done/steps)*100,'TLS inspection…');
+    logLine('info','[INFO]   ─────────────────────────────────────');
+    logLine('info','[INFO]   Phase 3 — TLS / Certificate Checks');
+    for(const [check,risk,desc] of TLS){
+      if(rnd()<0.38){
+        scanData.tls.push({check,risk,desc});
+        scanData.summary[risk]=(scanData.summary[risk]||0)+1;
+        const cl=risk==='critical'?'crit':risk==='high'?'high':'med';
+        logLine(cl,`[${risk.toUpperCase().padEnd(8)}] ${check}`);
+      } else logLine('ok',`[OK]       ${check} — not detected`);
+      await tick(70);
+    }
+    done++; await tick(150);
+  }
+
+  if(mods.includes('software')){
+    setP((done/steps)*100,'Software fingerprinting…');
+    logLine('info','[INFO]   ─────────────────────────────────────');
+    logLine('info','[INFO]   Phase 4 — Software Version Detection');
+    for(const [name,detected,latest,cve,risk,summary] of SOFTWARE){
+      if(rnd()<0.50){
+        scanData.software.push({name,detected,latest,cve,risk,summary});
+        scanData.summary[risk]=(scanData.summary[risk]||0)+1;
+        const cl=risk==='critical'?'crit':risk==='high'?'high':'med';
+        logLine(cl,`[${risk.toUpperCase().padEnd(8)}] ${name} v${detected} — ${cve}`);
+      } else logLine('ok',`[OK]       ${name} — no known issues`);
+      await tick(90);
+    }
+    done++; await tick(150);
+  }
+
+  if(mods.includes('paths')){
+    setP((done/steps)*100,'Path discovery…');
+    logLine('info','[INFO]   ─────────────────────────────────────');
+    logLine('info','[INFO]   Phase 5 — Sensitive Path Discovery');
+    for(const [path,risk,desc] of PATHS){
+      const p=({critical:.28,high:.33,medium:.42,low:.55})[risk]||.3;
+      if(rnd()<p){
+        scanData.paths.push({path,risk,desc});
+        scanData.summary[risk]=(scanData.summary[risk]||0)+1;
+        const cl=risk==='critical'?'crit':risk==='high'?'high':'med';
+        logLine(cl,`[${risk.toUpperCase().padEnd(8)}] 200 OK  ${path}`);
+      } else logLine('info',`[INFO]    404     ${path}`);
+      await tick(55);
+    }
+    done++;
+  }
+
+  setP(100,'Complete');
+  const s=scanData.summary;
+  logLine('ok',`[DONE]   Critical:${s.critical||0}  High:${s.high||0}  Medium:${s.medium||0}  Low:${s.low||0}`);
+  scanData.score=Math.max(0,100-(s.critical||0)*20-(s.high||0)*10-(s.medium||0)*5-(s.low||0)*2);
+
+  await tick(300);
+  renderReport();
+  running=false;
+  document.getElementById('scanBtn').textContent='Re-scan ↗';
+  document.getElementById('scanBtn').disabled=false;
+}
+
+function tick(ms=20){return new Promise(r=>setTimeout(r,ms))}
+
+function renderReport(){
+  const s=scanData.summary||{};
+  const sc=Math.round(scanData.score||0);
+  const scCol=sc>=75?'#1D9E75':sc>=50?'#EF9F27':'#E24B4A';
+  const total=(scanData.ports||[]).length+(scanData.headers||[]).length+(scanData.tls||[]).length+(scanData.software||[]).length+(scanData.paths||[]).length;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="ml">Score</div><div class="mv" style="color:${scCol}">${sc}/100</div></div>
+    <div class="metric"><div class="ml">Findings</div><div class="mv" style="color:#378ADD">${total}</div></div>
+    <div class="metric"><div class="ml">Critical</div><div class="mv" style="color:#E24B4A">${s.critical||0}</div></div>
+    <div class="metric"><div class="ml">High</div><div class="mv" style="color:#EF9F27">${s.high||0}</div></div>
+    <div class="metric"><div class="ml">Medium</div><div class="mv" style="color:#378ADD">${s.medium||0}</div></div>
+    <div class="metric"><div class="ml">Low</div><div class="mv" style="color:#1D9E75">${s.low||0}</div></div>`;
+  document.getElementById('report').style.display='block';
+  showTab('ports',document.querySelector('.tab-btn'));
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const c=document.getElementById('tabContent');
+
+  if(name==='ports'){
+    if(!(scanData.ports||[]).length){c.innerHTML=none('No open ports detected.');return;}
+    c.innerHTML=scanData.ports.map(p=>`<div class="row">
+      <code style="font-size:12px;min-width:44px;color:${p.risk==='critical'?'#E24B4A':p.risk==='high'?'#EF9F27':'#378ADD'}">${p.port}</code>
+      <div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px"><span style="font-weight:500;font-size:14px">${p.svc}</span>${badgeFor(p.risk)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">${p.desc}</div></div>
+      <span style="font-size:11px;font-family:var(--font-mono);color:#1D9E75">OPEN</span></div>`).join('');
+  } else if(name==='headers'){
+    if(!(scanData.headers||[]).length){c.innerHTML=none('All security headers present.');return;}
+    c.innerHTML=scanData.headers.map(h=>`<div class="row">
+      <i class="ti ti-http" aria-hidden="true" style="font-size:16px;color:var(--color-text-tertiary);margin-top:2px"></i>
+      <div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px"><code style="font-size:12px">${h.header}</code>${badgeFor(h.risk)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">${h.desc}</div></div></div>`).join('');
+  } else if(name==='tls'){
+    if(!(scanData.tls||[]).length){c.innerHTML=none('No TLS issues detected.');return;}
+    c.innerHTML=scanData.tls.map(t=>`<div class="row" style="border-left:3px solid ${t.risk==='critical'?'#E24B4A':t.risk==='high'?'#EF9F27':'#378ADD'};border-radius:0 var(--border-radius-md) var(--border-radius-md) 0">
+      <div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px"><span style="font-weight:500;font-size:14px">${t.check}</span>${badgeFor(t.risk)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">${t.desc}</div></div></div>`).join('');
+  } else if(name==='software'){
+    if(!(scanData.software||[]).length){c.innerHTML=none('No outdated software detected.');return;}
+    c.innerHTML=scanData.software.map(sw=>`<div class="row">
+      <i class="ti ti-package" aria-hidden="true" style="font-size:16px;color:var(--color-text-tertiary);margin-top:2px"></i>
+      <div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><span style="font-weight:500">${sw.name}</span>${badgeFor(sw.risk)}</div>
+      <div style="display:flex;gap:14px;font-size:12px;margin-bottom:3px"><span style="color:#E24B4A">Detected: <b>${sw.detected}</b></span><span style="color:#1D9E75">Latest: <b>${sw.latest}</b></span></div>
+      <div style="font-size:11px;font-family:var(--font-mono);color:var(--color-text-tertiary)">${sw.cve} — ${sw.summary}</div></div></div>`).join('');
+  } else if(name==='paths'){
+    if(!(scanData.paths||[]).length){c.innerHTML=none('No sensitive paths exposed.');return;}
+    c.innerHTML=scanData.paths.map(p=>`<div class="row">
+      <i class="ti ti-folder-open" aria-hidden="true" style="font-size:16px;color:var(--color-text-tertiary);margin-top:2px"></i>
+      <div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px"><code style="font-size:12px">${p.path}</code>${badgeFor(p.risk)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">${p.desc}</div></div>
+      <span style="font-size:11px;font-family:var(--font-mono);color:#E24B4A">200 OK</span></div>`).join('');
+  } else if(name==='fixes'){
+    const s=scanData.summary||{};
+    const rows=[
+      s.critical>0?['Immediate','#E24B4A','Close critical ports (Telnet 23, RDP 3389, VNC 5900, Redis 6379). Remove .env and .git exposures. Rotate all default credentials. Patch critical CVEs.']:null,
+      s.high>0?['Within 48 h','#EF9F27','Update outdated software. Disable plaintext protocols (FTP, POP3). Restrict database ports to internal network. Add HSTS header.']:null,
+      s.medium>0?['Within 1 week','#378ADD','Add missing HTTP headers (CSP, X-Frame-Options). Enforce TLS 1.2+. Disable directory listing. Restrict admin paths.']:null,
+      s.low>0?['Scheduled','#1D9E75','Fine-tune Referrer-Policy and Permissions-Policy. Set HSTS max-age >= 31536000. Enable OCSP stapling. Remove info-leaking Server headers.']:null,
+    ].filter(Boolean);
+    if(!rows.length){c.innerHTML=none('No significant findings — continue regular assessments.');return;}
+    c.innerHTML=rows.map(([lbl,col,txt])=>`<div class="row" style="border-left:3px solid ${col};border-radius:0 var(--border-radius-md) var(--border-radius-md) 0">
+      <div style="min-width:88px;font-weight:500;font-size:13px;color:${col}">${lbl}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">${txt}</div></div>`).join('');
+  }
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({
+    target:scanData.target,scanned_at:new Date().toISOString(),
+    score:Math.round(scanData.score||0),summary:scanData.summary,
+    findings:{ports:scanData.ports,headers:scanData.headers,tls:scanData.tls,software:scanData.software,paths:scanData.paths}
+  },null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`vuln_report_${(scanData.target||'scan').replace(/[^a-z0-9]/gi,'_')}.json`;
+  a.click();
+}
+
+function resetAll(){
+  document.getElementById('term').innerHTML='';
+  document.getElementById('term').style.display='none';
+  document.getElementById('report').style.display='none';
+  document.getElementById('progWrap').style.display='none';
+  document.getElementById('pb').style.width='0%';
+  scanData={};running=false;
+  document.getElementById('scanBtn').textContent='Scan ↗';
+  document.getElementById('scanBtn').disabled=false;
+}
+</script>
